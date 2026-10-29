@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  gait-analysis-app:
+    build: .
+    container_name: kinetagait-pt
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - MPLCONFIGDIR=/tmp/matplotlib_cache
+    volumes:
+      - uploads_data:/app/uploads
+      - reports_data:/app/reports
+
+volumes:
+  uploads_data:
+  reports_data:

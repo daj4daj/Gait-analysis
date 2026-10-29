@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KinetaGait PT - Clinical Gait Analysis & Biomechanical Reporting</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-person-walking"></i>
+      </div>
+      <div class="brand-text">
+        <h1>KinetaGait PT</h1>
+        <p>Physical Therapy Motion Analysis & Clinical Reporting</p>
+      </div>
+    </div>
+    <div class="nav-status">
+      <a href="/api/export-package" class="btn btn-secondary" style="padding: 0.45rem 0.9rem; font-size: 0.8rem;" download>
+        <i class="fa-solid fa-file-zipper"></i> Export Website Package (.zip)
+      </a>
+      <div class="badge-engine">
+        <span class="badge-dot"></span>
+        <span>MediaPipe Kinematics Engine Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <!-- Section Introduction -->
+    <div class="section-intro">
+      <h2>Biomechanical Gait Evaluation & Clinical Assessment</h2>
+      <p>Analyze patient gait from live webcam or video recordings. Extracts 3D/2D kinematics, flags pathological deviations, and compiles a complete Physical Therapy assessment report in PDF.</p>
+    </div>
+
+    <!-- Mode Selector Tabs -->
+    <div class="tabs-header">
+      <button class="tab-btn active" id="tabUploadBtn" onclick="switchInputMode('upload')">
+        <i class="fa-solid fa-file-video"></i> Upload Patient Video
+      </button>
+      <button class="tab-btn" id="tabLiveBtn" onclick="switchInputMode('live')">
+        <i class="fa-solid fa-video"></i> Live Webcam Gait Capture
+      </button>
+      <button class="tab-btn" id="tabSamplesBtn" onclick="switchInputMode('samples')">
+        <i class="fa-solid fa-flask-vial"></i> Clinical Demonstration Samples
+      </button>
+    </div>
+
+    <!-- Patient Demographics Form -->
+    <div class="card" id="patientInfoCard">
+      <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: var(--primary);">
+        <i class="fa-solid fa-clipboard-user" style="color: var(--brand); margin-right: 0.5rem;"></i>
+        Patient Demographics & Clinical Information
+      </h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Patient Name</label>
+          <input type="text" id="patientName" class="form-control" value="Eleanor Vance" />
+        </div>
+        <div class="form-group">
+          <label>Medical Record # (MRN)</label>
+          <input type="text" id="patientMRN" class="form-control" value="MRN-773921" />
+        </div>
+        <div class="form-group">
+          <label>Age</label>
+          <input type="number" id="patientAge" class="form-control" value="42" />
+        </div>
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="patientGender" class="form-control">
+            <option value="Female" selected>Female</option>
+            <option value="Male">Male</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Referring Physician</label>
+          <input type="text" id="physician" class="form-control" value="Dr. Marcus Thorne, MD (Orthopedics)" />
+        </div>
+        <div class="form-group">
+          <label>Evaluating Physical Therapist</label>
+          <input type="text" id="therapist" class="form-control" value="Dr. Daniel Hayes, PT, DPT, SCS" />
+        </div>
+        <div class="form-group full-width">
+          <label>Chief Complaint / Clinical Indication</label>
+          <input type="text" id="complaint" class="form-control" value="Right knee instability, hyperextension during midstance, and antalgic hesitation during prolonged ambulation." />
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode 1: Video File Upload -->
+    <div id="uploadModePanel" class="card">
+      <div class="dropzone" id="videoDropzone" onclick="document.getElementById('videoFileInput').click()">
+        <input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,video/webm,video/avi" style="display: none;" onchange="handleFileSelect(event)" />
+        <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+        <h3>Drag & Drop Patient Video Here</h3>
+        <p>Supports MP4, MOV, WebM, AVI recorded from Sagittal (side) or Frontal view</p>
+        <div id="fileSelectedDisplay" style="display: none;" class="file-chosen-info">
+          <i class="fa-solid fa-circle-check"></i> <span id="fileNameSpan"></span>
+        </div>
+      </div>
+      <div style="margin-top: 1.5rem; text-align: center;">
+        <button class="btn btn-primary btn-lg" id="startUploadAnalysisBtn" onclick="submitVideoUpload()">
+          <i class="fa-solid fa-play"></i> Run Biomechanical Analysis & Generate PT PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode 2: Live Webcam Capture -->
+    <div id="liveModePanel" class="card" style="display: none;">
+      <div class="webcam-panel">
+        <div class="camera-preview-wrapper">
+          <video id="webcamVideo" autoplay playsinline muted></video>
+          <canvas id="webcamCanvas"></canvas>
+          <div class="webcam-hud" id="webcamHud">
+            <i class="fa-solid fa-camera"></i> Camera Ready | Stand in full-body view
+          </div>
+          <div class="webcam-rec-indicator" id="recIndicator">
+            <i class="fa-solid fa-circle"></i> RECORDING GAIT (<span id="recTimerSpan">5s</span>)
+          </div>
+        </div>
+
+        <div class="webcam-controls">
+          <button class="btn btn-secondary" id="startCamBtn" onclick="startCamera()">
+            <i class="fa-solid fa-video"></i> Start Webcam
+          </button>
+          <button class="btn btn-danger" id="record5sBtn" onclick="recordAndAnalyze(5)" disabled>
+            <i class="fa-solid fa-record-vinyl"></i> Record 5-Sec Gait
+          </button>
+          <button class="btn btn-danger" id="record10sBtn" onclick="recordAndAnalyze(10)" disabled>
+            <i class="fa-solid fa-record-vinyl"></i> Record 10-Sec Gait
+          </button>
+          <button class="btn btn-secondary" id="stopCamBtn" onclick="stopCamera()" disabled>
+            <i class="fa-solid fa-stop"></i> Stop Camera
+          </button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+          <i class="fa-solid fa-circle-info"></i> For optimal results, position the patient on a treadmill or 10-meter walking runway so the full lower body is visible in the frame.
+        </p>
+      </div>
+    </div>
+
+    <!-- Mode 3: Demonstration Samples -->
+    <div id="samplesModePanel" class="card" style="display: none;">
+      <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: var(--primary);">
+        Select a Pre-Loaded Clinical Gait Sample
+      </h3>
+      <div class="sample-grid" id="samplesContainer">
+        <!-- Dynamically populated via JS -->
+      </div>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-container" id="progressContainer">
+      <div class="spinner"></div>
+      <h3 id="progressTitle">Analyzing Gait Kinematics...</h3>
+      <div class="progress-steps" id="progressStep">Extracting 33 Skeletal Landmarks via MediaPipe...</div>
+    </div>
+
+    <!-- Step 2: Clinical Results Dashboard -->
+    <section id="resultsSection">
+      
+      <!-- Top Action Bar -->
+      <div class="results-header">
+        <div class="results-meta">
+          <h3 id="resPatientHeading">Gait Biomechanical Assessment - Eleanor Vance</h3>
+          <p id="resSessionSub">Session ID: <span id="resSessionId"></span> | Date: <span id="resDate"></span> | Model: MediaPipe Pose</p>
+        </div>
+        <div class="results-actions">
+          <a id="downloadPdfBtn" href="#" target="_blank" class="btn btn-primary">
+            <i class="fa-solid fa-file-pdf"></i> Download Full PT Report (PDF)
+          </a>
+          <button class="btn btn-secondary" onclick="window.print()">
+            <i class="fa-solid fa-print"></i> Print
+          </button>
+          <button class="btn btn-secondary" onclick="openNotesModal()">
+            <i class="fa-solid fa-user-doctor"></i> Edit Therapist Notes
+          </button>
+        </div>
+      </div>
+
+      <!-- Top Scorecard KPI Cards -->
+      <div class="scorecards-grid">
+        <div class="scorecard" id="cardSymmetry">
+          <span class="scorecard-label">Gait Symmetry Index</span>
+          <span class="scorecard-val" id="valSymmetry">--%</span>
+          <span class="scorecard-sub" id="subSymmetry">Normal: &gt; 90%</span>
+        </div>
+        <div class="scorecard">
+          <span class="scorecard-label">Cadence (Tempo)</span>
+          <span class="scorecard-val" id="valCadence">--</span>
+          <span class="scorecard-sub">steps / min (Ref: 100-120)</span>
+        </div>
+        <div class="scorecard">
+          <span class="scorecard-label">Stride Time Duration</span>
+          <span class="scorecard-val" id="valStrideTime">--s</span>
+          <span class="scorecard-sub">seconds (Ref: 1.0 - 1.25s)</span>
+        </div>
+        <div class="scorecard">
+          <span class="scorecard-label">Stance Phase Balance</span>
+          <span class="scorecard-val" id="valStanceRatio">-- / --</span>
+          <span class="scorecard-sub">Left % / Right % (Ref: 60%)</span>
+        </div>
+      </div>
+
+      <!-- Main Dual-Column Analysis -->
+      <div class="analysis-main-grid">
+        
+        <!-- Left: Synchronized Video Reviewer -->
+        <div class="card" style="padding: 1.25rem;">
+          <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--primary);">
+            <i class="fa-solid fa-video" style="color: var(--brand); margin-right: 0.4rem;"></i>
+            Skeletal Tracking & Kinematic Overlay
+          </h4>
+          <div class="video-player-container">
+            <video id="annotatedVideo" controls playsinline></video>
+          </div>
+          <div class="video-speed-controls">
+            <span style="font-weight: 600; color: var(--text-muted);">Playback Speed (PT Slow-Mo):</span>
+            <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="setVideoSpeed(0.25)">0.25x</button>
+            <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="setVideoSpeed(0.5)">0.5x</button>
+            <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="setVideoSpeed(1.0)">1.0x</button>
+          </div>
+        </div>
+
+        <!-- Right: Spatiotemporal & Kinematic Metrics Table -->
+        <div class="card" style="padding: 1.25rem;">
+          <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--primary);">
+            <i class="fa-solid fa-table-list" style="color: var(--brand); margin-right: 0.4rem;"></i>
+            Joint Kinematics & Reference Comparison
+          </h4>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Left</th>
+                  <th>Right</th>
+                  <th>Reference</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="metricsTableBody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Kinematic Comparison Curves Gallery -->
+      <div class="card">
+        <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--primary);">
+          <i class="fa-solid fa-chart-line" style="color: var(--brand); margin-right: 0.4rem;"></i>
+          Kinematic Trajectories vs. Normative Band (0 - 100% Gait Cycle)
+        </h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Continuous angle trajectories compared against 2-SD normative adult corridors (Perry &amp; Burnfield). Shaded corridor shows healthy normative bounds.
+        </p>
+        <div class="charts-gallery">
+          <div class="chart-card">
+            <h5 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">Knee Flexion / Extension Trajectory</h5>
+            <img id="chartKneeImg" src="" alt="Knee Kinematics Chart" />
+          </div>
+          <div class="chart-card">
+            <h5 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">Hip Flexion / Extension Trajectory</h5>
+            <img id="chartHipImg" src="" alt="Hip Kinematics Chart" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Detected Deviations & Clinical Pathology -->
+      <div class="card">
+        <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--primary);">
+          <i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); margin-right: 0.4rem;"></i>
+          Detected Gait Deviations & Biomechanical Impact
+        </h4>
+        <div id="deviationsContainer">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+      <!-- Physical Therapy Prescription & Targeted Interventions -->
+      <div class="card">
+        <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--primary);">
+          <i class="fa-solid fa-dumbbell" style="color: var(--accent); margin-right: 0.4rem;"></i>
+          Targeted Physical Therapy Rehabilitation Protocol
+        </h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Prescribed therapeutic exercises and neuromotor gait retraining mapped directly to the patient's identified deficits.
+        </p>
+        <div class="exercise-grid" id="exercisesContainer">
+          <!-- Populated via JS -->
+        </div>
+
+        <div style="margin-top: 1.5rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 1rem;">
+          <h5 style="font-size: 0.95rem; font-weight: 700; color: #1e3a8a; margin-bottom: 0.35rem;">
+            <i class="fa-solid fa-bullhorn"></i> Neuromotor Gait Retraining Drills &amp; Verbal Cues
+          </h5>
+          <div id="drillsContainer" style="font-size: 0.85rem; color: #1e293b; margin-bottom: 0.5rem;"></div>
+          <div id="dosageContainer" style="font-size: 0.85rem; font-weight: 700; color: #1e3a8a;"></div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Modal: Therapist Notes & Re-Export -->
+  <div class="modal-overlay" id="notesModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-user-doctor" style="color: var(--brand);"></i> Physical Therapist Clinical Impressions</h3>
+        <button class="close-modal-btn" onclick="closeNotesModal()">&times;</button>
+      </div>
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label>Evaluating Therapist Notes & Sign-off Impressions</label>
+        <textarea id="modalTherapistNotes" rows="5" class="form-control" style="resize: vertical;">Patient presents with significant right knee hyperextension during midstance accompanied by compensatory anterior pelvic tilt. Recommended to begin Phase 1 neuromuscular re-education and eccentric quadriceps loading immediately. Re-evaluation of joint kinematics scheduled in 4 weeks.</textarea>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="closeNotesModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveAndReExportReport()">
+          <i class="fa-solid fa-arrows-rotate"></i> Update & Re-Generate PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
